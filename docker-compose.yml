@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reva-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: reva
+      POSTGRES_PASSWORD: reva_dev_password
+      POSTGRES_DB: reva
+    ports:
+      - "5433:5432"
+    volumes:
+      - reva_pgdata:/var/lib/postgresql/data
+
+volumes:
+  reva_pgdata:

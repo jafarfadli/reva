@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TableShape {
+  RECTANGLE
+  CIRCLE
+}
+
+model Table {
+  id           String        @id @default(cuid())
+  label        String        // misal "T1", "Meja Patio 3"
+  seats        Int
+  shape        TableShape    @default(RECTANGLE)
+  x            Float         // posisi di canvas
+  y            Float
+  width        Float         @default(80)
+  height       Float         @default(80)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  reservations Reservation[]
+
+  @@map("tables")
+}
+
+model Reservation {
+  id           String   @id @default(cuid())
+  tableId      String
+  table        Table    @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  customerName String
+  customerPhone String?
+  startTime    DateTime @db.Timestamptz(6)
+  endTime      DateTime @db.Timestamptz(6)
+  createdAt    DateTime @default(now())
+
+  @@index([tableId, startTime, endTime])
+  @@map("reservations")
+}
