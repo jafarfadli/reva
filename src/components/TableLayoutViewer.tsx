@@ -7,16 +7,22 @@ type Props = {
   tables: TableWithStatus[];
   width?: number;
   height?: number;
+  onTableClick?: (table: TableWithStatus) => void;
 };
 
 const COLORS = {
-  free: "#22c55e",      // tailwind green-500
-  occupied: "#ef4444",  // tailwind red-500
-  stroke: "#1f2937",    // tailwind gray-800
+  free: "#22c55e",
+  occupied: "#ef4444",
+  stroke: "#1f2937",
   label: "#ffffff",
 };
 
-export default function TableLayoutViewer({ tables, width = 800, height = 500 }: Props) {
+export default function TableLayoutViewer({
+  tables,
+  width = 800,
+  height = 500,
+  onTableClick,
+}: Props) {
   return (
     <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50 inline-block">
       <Stage width={width} height={height}>
@@ -24,9 +30,26 @@ export default function TableLayoutViewer({ tables, width = 800, height = 500 }:
           {tables.map((t) => {
             const fill = t.isOccupied ? COLORS.occupied : COLORS.free;
             const isCircle = t.shape === "CIRCLE";
+            const clickable = !t.isOccupied && !!onTableClick;
 
             return (
-              <Group key={t.id} x={t.x} y={t.y}>
+              <Group
+                key={t.id}
+                x={t.x}
+                y={t.y}
+                onClick={clickable ? () => onTableClick(t) : undefined}
+                onTap={clickable ? () => onTableClick(t) : undefined}
+                onMouseEnter={(e) => {
+                  if (clickable) {
+                    const stage = e.target.getStage();
+                    if (stage) stage.container().style.cursor = "pointer";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  const stage = e.target.getStage();
+                  if (stage) stage.container().style.cursor = "default";
+                }}
+              >
                 {isCircle ? (
                   <Circle
                     radius={t.width / 2}
