@@ -76,3 +76,20 @@ function formatDateLabel(d: Date, offset: number): string {
   if (offset === 1) return `Besok · ${d.toLocaleDateString("id-ID", { day: "numeric", month: "short" })}`;
   return d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" });
 }
+
+/** Slot 30 menit terdekat ke depan dari sekarang (untuk reservasi saat live) */
+export function getNextReservationSlot(): { date: string; time: string } {
+  const now = new Date();
+  const slotMin = OPERATING_HOURS.slotMinutes;
+  // Bulatkan ke ATAS, bukan ke bawah
+  const minutes = Math.ceil(now.getMinutes() / slotMin) * slotMin;
+  now.setMinutes(minutes, 0, 0);
+
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  const h = String(now.getHours()).padStart(2, "0");
+  const mi = String(now.getMinutes()).padStart(2, "0");
+
+  return { date: `${y}-${m}-${d}`, time: `${h}:${mi}` };
+}

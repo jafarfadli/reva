@@ -8,6 +8,8 @@ type Props = {
   width?: number;
   height?: number;
   onTableClick?: (table: TableWithStatus) => void;
+  /** Kalau true, meja occupied juga bisa diklik (untuk admin walk-in) */
+  allowClickOccupied?: boolean;
 };
 
 const COLORS = {
@@ -22,6 +24,7 @@ export default function TableLayoutViewer({
   width = 800,
   height = 500,
   onTableClick,
+  allowClickOccupied = false,
 }: Props) {
   return (
     <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50 inline-block">
@@ -30,7 +33,8 @@ export default function TableLayoutViewer({
           {tables.map((t) => {
             const fill = t.isOccupied ? COLORS.occupied : COLORS.free;
             const isCircle = t.shape === "CIRCLE";
-            const clickable = !t.isOccupied && !!onTableClick;
+            const clickable =
+              !!onTableClick && (!t.isOccupied || allowClickOccupied);
 
             return (
               <Group
