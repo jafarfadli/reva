@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import LayoutEditor from "@/components/admin/LayoutEditor";
+import LayoutEditorWrapper from "@/components/admin/LayoutEditorWrapper";
 
 export default async function AdminLayoutEditorPage() {
   const tables = await prisma.table.findMany({
@@ -7,14 +7,16 @@ export default async function AdminLayoutEditorPage() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Layout Meja</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="font-serif text-2xl sm:text-3xl text-espresso font-semibold tracking-tight">
+          Layout Meja
+        </h1>
+        <p className="text-xs sm:text-sm text-mocha mt-1">
           Editor visual untuk mengatur posisi, ukuran, dan jumlah meja
         </p>
       </div>
-      <LayoutEditor initialTables={tables} />
+      <LayoutEditorWrapper initialTables={tables} />
     </div>
   );
 }

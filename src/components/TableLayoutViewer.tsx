@@ -1,94 +1,29 @@
 "use client";
 
-import { Stage, Layer, Rect, Circle, Text, Group } from "react-konva";
+import dynamic from "next/dynamic";
 import type { TableWithStatus } from "@/lib/types";
+
+const TableLayoutViewerInner = dynamic(
+  () => import("./TableLayoutViewerInner"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="border border-border-warm rounded-lg bg-cream-light shadow-sm w-full aspect-[8/5] flex items-center justify-center">
+        <div className="text-mocha text-sm flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-terracotta animate-pulse" />
+          Memuat layout meja...
+        </div>
+      </div>
+    ),
+  },
+);
 
 type Props = {
   tables: TableWithStatus[];
-  width?: number;
-  height?: number;
   onTableClick?: (table: TableWithStatus) => void;
-  /** Kalau true, meja occupied juga bisa diklik (untuk admin walk-in) */
   allowClickOccupied?: boolean;
 };
 
-const COLORS = {
-  free: "#22c55e",
-  occupied: "#ef4444",
-  stroke: "#1f2937",
-  label: "#ffffff",
-};
-
-export default function TableLayoutViewer({
-  tables,
-  width = 800,
-  height = 500,
-  onTableClick,
-  allowClickOccupied = false,
-}: Props) {
-  return (
-    <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50 inline-block">
-      <Stage width={width} height={height}>
-        <Layer>
-          {tables.map((t) => {
-            const fill = t.isOccupied ? COLORS.occupied : COLORS.free;
-            const isCircle = t.shape === "CIRCLE";
-            const clickable =
-              !!onTableClick && (!t.isOccupied || allowClickOccupied);
-
-            return (
-              <Group
-                key={t.id}
-                x={t.x}
-                y={t.y}
-                onClick={clickable ? () => onTableClick(t) : undefined}
-                onTap={clickable ? () => onTableClick(t) : undefined}
-                onMouseEnter={(e) => {
-                  if (clickable) {
-                    const stage = e.target.getStage();
-                    if (stage) stage.container().style.cursor = "pointer";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  const stage = e.target.getStage();
-                  if (stage) stage.container().style.cursor = "default";
-                }}
-              >
-                {isCircle ? (
-                  <Circle
-                    radius={t.width / 2}
-                    fill={fill}
-                    stroke={COLORS.stroke}
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <Rect
-                    width={t.width}
-                    height={t.height}
-                    fill={fill}
-                    stroke={COLORS.stroke}
-                    strokeWidth={2}
-                    cornerRadius={6}
-                    offsetX={t.width / 2}
-                    offsetY={t.height / 2}
-                  />
-                )}
-                <Text
-                  text={`${t.label}\n${t.seats} seats`}
-                  fontSize={12}
-                  fontStyle="bold"
-                  fill={COLORS.label}
-                  align="center"
-                  width={t.width}
-                  offsetX={t.width / 2}
-                  offsetY={isCircle ? 12 : t.height / 2 - 8}
-                  listening={false}
-                />
-              </Group>
-            );
-          })}
-        </Layer>
-      </Stage>
-    </div>
-  );
+export default function TableLayoutViewer(props: Props) {
+  return <TableLayoutViewerInner {...props} />;
 }

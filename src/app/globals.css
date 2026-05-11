@@ -1,26 +1,102 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  /* === Reva Warm Hospitality Palette === */
+  --color-cream: #FAF6F0;
+  --color-cream-light: #FCF9F4;
+  --color-cream-dark: #F2E9DA;
+
+  --color-border-warm: #EAE0D2;
+  --color-border-soft: #F2EADD;
+
+  --color-espresso: #3D2817;
+  --color-cocoa: #5A4232;
+  --color-mocha: #6B5544;
+  --color-taupe: #9A8775;
+  --color-sand: #C2AF99;
+
+  --color-terracotta: #B85042;
+  --color-terracotta-dark: #9F4338;
+  --color-terracotta-light: #D4756A;
+  --color-terracotta-subtle: #FBEDEA;
+
+  --color-sage: #7A9270;
+  --color-sage-dark: #5F7556;
+  --color-sage-subtle: #ECF0E9;
+
+  --color-clay: #C76449;
+  --color-clay-dark: #A85339;
+  --color-clay-subtle: #FBE8E1;
+
+  --color-caramel: #D4A574;
+  --color-caramel-subtle: #FBF1E2;
+
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/* Base */
+html {
+  background-color: var(--color-cream);
 }
-
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-} */
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Smooth focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-terracotta);
+  outline-offset: 2px;
+}
+
+/* Text selection */
+::selection {
+  background-color: var(--color-terracotta-subtle);
+  color: var(--color-espresso);
+}
+
+/* Range slider styling — for size sliders di layout editor */
+input[type="range"] {
+  accent-color: var(--color-terracotta);
+}
+
+/* Date input */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* Custom scrollbar untuk warm theme */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-cream);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-sand);
+  border-radius: 5px;
+  border: 2px solid var(--color-cream);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-taupe);
+}
+
+/* Bottom sheet animation */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
 }

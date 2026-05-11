@@ -36,26 +36,28 @@ export default function ReservationModal({
       minute: "2-digit",
     });
 
-  // Kalau belum login, tampilkan pesan login required
   if (!currentUser) {
     return (
       <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-espresso/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         onClick={onClose}
       >
         <div
-          className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+          className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 border border-border-warm max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          <h2 className="text-xl font-bold mb-2">Login diperlukan</h2>
-          <p className="text-sm text-gray-600 mb-4">
-            Silakan login dengan akun Google terlebih dahulu untuk membuat reservasi.
+          <h2 className="font-serif text-2xl text-espresso mb-2 font-semibold">
+            Login diperlukan
+          </h2>
+          <p className="text-sm text-mocha mb-5 leading-relaxed">
+            Silakan login dengan akun Google terlebih dahulu untuk membuat
+            reservasi.
           </p>
           <div className="flex justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm border rounded hover:bg-gray-50"
+              className="px-4 py-2 text-sm border border-border-warm text-cocoa rounded-md hover:bg-cream-dark transition font-medium"
             >
               Tutup
             </button>
@@ -88,75 +90,86 @@ export default function ReservationModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-espresso/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl max-w-md w-full p-6"
+        className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 border border-border-warm max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-xl font-bold mb-1">Reservasi Meja {table.label}</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          {table.seats} kursi · Durasi 3 jam
-        </p>
-
-        <div className="bg-gray-50 border rounded p-3 mb-4 text-sm space-y-1">
-          <div>
-            <span className="text-gray-500">Mulai: </span>
-            <span className="font-medium">{fmt(startTime)}</span>
+        <div className="mb-5">
+          <div className="text-xs font-semibold text-terracotta uppercase tracking-wider mb-1">
+            Reservasi Meja
           </div>
-          <div>
-            <span className="text-gray-500">Selesai: </span>
-            <span className="font-medium">{fmt(endTime)}</span>
+          <h2 className="font-serif text-2xl text-espresso font-semibold">
+            Meja {table.label}
+          </h2>
+          <p className="text-sm text-mocha mt-0.5">
+            {table.seats} kursi · Durasi 3 jam
+          </p>
+        </div>
+
+        <div className="bg-cream-light border border-border-soft rounded-md p-3.5 mb-5 space-y-1.5 text-sm">
+          <div className="flex justify-between">
+            <span className="text-taupe">Mulai</span>
+            <span className="font-semibold text-espresso">
+              {fmt(startTime)}
+            </span>
+          </div>
+          <div className="flex justify-between pt-1.5 border-t border-border-soft">
+            <span className="text-taupe">Selesai</span>
+            <span className="font-semibold text-espresso">{fmt(endTime)}</span>
           </div>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Nama <span className="text-red-500">*</span>
+            <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
+              Nama <span className="text-terracotta">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 bg-cream-light border border-border-warm rounded-md text-espresso placeholder:text-taupe focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20 transition text-sm"
               placeholder="Nama pemesan"
               disabled={isPending}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">
+            <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
               No. HP (opsional)
             </label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full px-3 py-2 bg-cream-light border border-border-warm rounded-md text-espresso placeholder:text-taupe focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20 transition text-sm"
               placeholder="08xxxxxxxxxx"
               disabled={isPending}
             />
           </div>
         </div>
 
-        <p className="mt-3 text-xs text-gray-500">
+        <p className="mt-3 text-xs text-taupe italic">
           Reservasi atas akun:{" "}
-          <span className="font-medium">{currentUser.email}</span>
+          <span className="font-medium text-mocha not-italic">
+            {currentUser.email}
+          </span>
         </p>
 
         {error && (
-          <div className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+          <div className="mt-4 text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-3">
             {error}
           </div>
         )}
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-6 flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
             disabled={isPending}
-            className="px-4 py-2 text-sm border rounded hover:bg-gray-50 disabled:opacity-50"
+            className="px-4 py-2 text-sm border border-border-warm text-cocoa rounded-md hover:bg-cream-dark transition font-medium disabled:opacity-50"
           >
             Batal
           </button>
@@ -164,7 +177,7 @@ export default function ReservationModal({
             type="button"
             onClick={handleSubmit}
             disabled={isPending}
-            className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            className="px-5 py-2 text-sm bg-terracotta text-white rounded-md hover:bg-terracotta-dark transition font-medium disabled:opacity-50 shadow-sm"
           >
             {isPending ? "Memproses..." : "Konfirmasi Reservasi"}
           </button>

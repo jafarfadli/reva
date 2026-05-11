@@ -12,7 +12,6 @@ export default async function AdminReservationsPage({
 }) {
   const params = await searchParams;
 
-  // Default: hari ini
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -34,7 +33,6 @@ export default async function AdminReservationsPage({
 
   const reservations = await getAllReservations(rangeStart, rangeEnd);
 
-  // Stats
   const total = reservations.length;
   const upcoming = reservations.filter(
     (r) => r.startTime.getTime() > Date.now(),
@@ -45,18 +43,20 @@ export default async function AdminReservationsPage({
   ).length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Reservasi</h1>
-        <p className="text-sm text-gray-600">
+        <h1 className="font-serif text-2xl sm:text-3xl text-espresso font-semibold tracking-tight">
+          Reservasi
+        </h1>
+        <p className="text-xs sm:text-sm text-mocha mt-1">
           Semua reservasi pelanggan, dapat difilter per tanggal
         </p>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard label="Total hari ini" value={total} />
-        <StatCard label="Akan datang" value={upcoming} accent="green" />
-        <StatCard label="Berlangsung" value={ongoing} accent="amber" />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <StatCard label="Total" value={total} />
+        <StatCard label="Akan datang" value={upcoming} accent="sage" />
+        <StatCard label="Berlangsung" value={ongoing} accent="caramel" />
       </div>
 
       <AdminReservationFilter
@@ -83,21 +83,27 @@ function StatCard({
 }: {
   label: string;
   value: number;
-  accent?: "green" | "amber";
+  accent?: "sage" | "caramel" | "terracotta";
 }) {
   const accentColor =
-    accent === "green"
-      ? "text-green-700"
-      : accent === "amber"
-      ? "text-amber-700"
-      : "text-gray-900";
+    accent === "sage"
+      ? "text-sage-dark"
+      : accent === "caramel"
+      ? "text-cocoa"
+      : accent === "terracotta"
+      ? "text-terracotta-dark"
+      : "text-espresso";
 
   return (
-    <div className="bg-white border rounded-lg p-4">
-      <div className="text-xs text-gray-500 uppercase tracking-wide">
+    <div className="bg-white border border-border-warm rounded-lg p-3 sm:p-5 shadow-sm">
+      <div className="text-[10px] sm:text-xs text-mocha uppercase tracking-wide font-semibold leading-tight">
         {label}
       </div>
-      <div className={`text-3xl font-bold mt-1 ${accentColor}`}>{value}</div>
+      <div
+        className={`font-serif text-2xl sm:text-4xl font-semibold mt-1 ${accentColor}`}
+      >
+        {value}
+      </div>
     </div>
   );
 }

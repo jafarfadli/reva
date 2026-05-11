@@ -56,10 +56,16 @@ function ReservationCard({
   const isOngoing = start.getTime() <= Date.now() && end.getTime() > Date.now();
 
   const status = isOngoing
-    ? { label: "Sedang berlangsung", color: "bg-amber-100 text-amber-800" }
+    ? {
+        label: "Sedang berlangsung",
+        color: "bg-caramel-subtle text-cocoa border-caramel/40",
+      }
     : isUpcoming
-    ? { label: "Akan datang", color: "bg-green-100 text-green-800" }
-    : { label: "Selesai", color: "bg-gray-100 text-gray-600" };
+    ? {
+        label: "Akan datang",
+        color: "bg-sage-subtle text-sage-dark border-sage/30",
+      }
+    : { label: "Selesai", color: "bg-cream-dark text-mocha border-border-warm" };
 
   const handleCancel = () => {
     if (!confirm("Yakin batalkan reservasi ini?")) return;
@@ -75,32 +81,32 @@ function ReservationCard({
   };
 
   return (
-    <li className="border rounded-lg p-4 bg-white">
-      <div className="flex justify-between items-start gap-3 flex-wrap">
+    <li className="bg-white border border-border-warm rounded-lg p-5 shadow-sm hover:shadow transition">
+      <div className="flex justify-between items-start gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-lg font-bold text-gray-900">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="font-serif text-xl font-semibold text-espresso">
               Meja {reservation.table.label}
             </span>
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-taupe">
               · {reservation.table.seats} kursi
             </span>
             <span
-              className={`px-2 py-0.5 text-xs rounded-full font-medium ${status.color}`}
+              className={`px-2 py-0.5 text-xs rounded-full font-medium border ${status.color}`}
             >
               {status.label}
             </span>
           </div>
-          <div className="text-sm text-gray-700 space-y-0.5">
-            <div>
-              <span className="text-gray-500">Mulai:</span>{" "}
-              <span className="font-medium">{fmt(start)}</span>
+          <div className="text-sm space-y-1">
+            <div className="flex gap-2">
+              <span className="text-taupe min-w-[60px]">Mulai</span>
+              <span className="font-medium text-espresso">{fmt(start)}</span>
             </div>
-            <div>
-              <span className="text-gray-500">Selesai:</span>{" "}
-              <span className="font-medium">{fmt(end)}</span>
+            <div className="flex gap-2">
+              <span className="text-taupe min-w-[60px]">Selesai</span>
+              <span className="font-medium text-espresso">{fmt(end)}</span>
             </div>
-            <div className="text-xs text-gray-500 pt-1">
+            <div className="text-xs text-taupe pt-1 italic">
               Atas nama: {reservation.customerName}
               {reservation.customerPhone && ` · ${reservation.customerPhone}`}
             </div>
@@ -111,14 +117,14 @@ function ReservationCard({
             type="button"
             onClick={handleCancel}
             disabled={isPending}
-            className="px-3 py-1.5 text-sm border border-red-200 text-red-700 rounded hover:bg-red-50 disabled:opacity-50 shrink-0"
+            className="px-3 py-1.5 text-sm border border-clay/30 text-clay-dark rounded-md hover:bg-clay-subtle transition font-medium disabled:opacity-50 shrink-0"
           >
             {isPending ? "Membatalkan..." : "Batalkan"}
           </button>
         )}
       </div>
       {error && (
-        <div className="mt-3 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+        <div className="mt-3 text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-2.5">
           {error}
         </div>
       )}

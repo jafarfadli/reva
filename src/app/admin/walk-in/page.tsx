@@ -6,13 +6,16 @@ export default async function AdminWalkInPage() {
   const tables = await getTablesWithActiveReservation(now);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Walk-in & Live Control</h1>
-        <p className="text-sm text-gray-600">
-          Klik meja <span className="text-green-700 font-semibold">hijau</span> untuk
+        <h1 className="font-serif text-3xl text-espresso font-semibold tracking-tight">
+          Walk-in & Live Control
+        </h1>
+        <p className="text-sm text-mocha mt-1">
+          Klik meja{" "}
+          <span className="text-sage-dark font-semibold">hijau</span> untuk
           assign walk-in (3 jam). Klik meja{" "}
-          <span className="text-red-700 font-semibold">merah</span> untuk
+          <span className="text-clay-dark font-semibold">merah</span> untuk
           membebaskan.
         </p>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Stage, Layer, Rect, Circle, Text, Group } from "react-konva";
 import type { Table, TableShape } from "@prisma/client";
 import {
@@ -10,20 +10,20 @@ import {
   countUpcomingReservations,
 } from "@/app/actions/tables";
 
-const CANVAS_W = 800;
-const CANVAS_H = 500;
-const POS_SNAP = 20;   // posisi snap ke 20px (sesuai grid)
-const SIZE_SNAP = 20;  // dimensi snap ke 20px
+const LOGICAL_W = 800;
+const LOGICAL_H = 500;
+const POS_SNAP = 40;
+const SIZE_SNAP = 20;
 const MIN_SIZE = 40;
 const MAX_SIZE = 200;
 
 const COLORS = {
-  fill: "#22c55e",
-  fillSelected: "#16a34a",
-  stroke: "#1f2937",
-  strokeSelected: "#fbbf24",
-  label: "#ffffff",
-  grid: "#e5e7eb",
+  fill: "#7A9270",
+  fillSelected: "#5F7556",
+  stroke: "#3D2817",
+  strokeSelected: "#B85042",
+  label: "#FFFFFF",
+  grid: "#EAE0D2",
 };
 
 const snap = (v: number, step: number) => Math.round(v / step) * step;
@@ -42,7 +42,6 @@ export default function LayoutEditor({ initialTables }: Props) {
 
   const selected = tables.find((t) => t.id === selectedId) ?? null;
 
-  // === Add ===
   const handleAddTable = () => {
     setError(null);
     const newLabel = `T${tables.length + 1}`;
@@ -50,8 +49,8 @@ export default function LayoutEditor({ initialTables }: Props) {
       label: newLabel,
       seats: 4,
       shape: "RECTANGLE" as TableShape,
-      x: snap(CANVAS_W / 2, POS_SNAP),
-      y: snap(CANVAS_H / 2, POS_SNAP),
+      x: snap(LOGICAL_W / 2, POS_SNAP),
+      y: snap(LOGICAL_H / 2, POS_SNAP),
       width: 80,
       height: 80,
     };
@@ -74,14 +73,11 @@ export default function LayoutEditor({ initialTables }: Props) {
     });
   };
 
-  // === Drag (posisi) ===
   const handleDragEnd = (id: string, x: number, y: number) => {
     const snappedX = snap(x, POS_SNAP);
     const snappedY = snap(y, POS_SNAP);
     setTables((prev) =>
-      prev.map((t) =>
-        t.id === id ? { ...t, x: snappedX, y: snappedY } : t,
-      ),
+      prev.map((t) => (t.id === id ? { ...t, x: snappedX, y: snappedY } : t)),
     );
     startTransition(async () => {
       const result = await updateTable({ id, x: snappedX, y: snappedY });
@@ -89,7 +85,6 @@ export default function LayoutEditor({ initialTables }: Props) {
     });
   };
 
-  // === Update field ===
   const handleFieldUpdate = (
     id: string,
     field: "label" | "seats" | "shape" | "width" | "height",
@@ -101,11 +96,9 @@ export default function LayoutEditor({ initialTables }: Props) {
 
     const updates: Partial<Table> = { [field]: value };
 
-    // Saat shape berubah ke CIRCLE, sync height = width supaya proporsional
     if (field === "shape" && value === "CIRCLE") {
       updates.height = table.width;
     }
-    // Saat shape CIRCLE dan dimensi berubah, jaga width = height
     if (table.shape === "CIRCLE" && (field === "width" || field === "height")) {
       updates.width = value as number;
       updates.height = value as number;
@@ -120,7 +113,6 @@ export default function LayoutEditor({ initialTables }: Props) {
     });
   };
 
-  // === Delete ===
   const handleDelete = async (id: string) => {
     setError(null);
     const countResult = await countUpcomingReservations(id);
@@ -143,62 +135,49 @@ export default function LayoutEditor({ initialTables }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+      {/* Toolbar */}
+      <div className="bg-white border border-border-warm rounded-lg p-4 flex items-center justify-between flex-wrap gap-3 shadow-sm">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={handleAddTable}
             disabled={isPending}
-            className="px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50"
+            className="px-4 py-2.5 bg-terracotta text-white rounded-md font-medium hover:bg-terracotta-dark transition shadow-sm text-sm disabled:opacity-50"
           >
             + Tambah Meja
           </button>
-          <span className="text-sm text-gray-500">
-            {tables.length} meja
+          <span className="text-sm text-mocha">
+            <span className="font-semibold text-espresso">{tables.length}</span>{" "}
+            meja
             {isPending && (
-              <span className="ml-2 text-xs text-amber-600">Menyimpan...</span>
+              <span className="ml-2 text-xs text-caramel italic">
+                Menyimpan...
+              </span>
             )}
           </span>
         </div>
-        <div className="text-xs text-gray-500">
-          Drag meja untuk pindah · Klik untuk pilih · Posisi snap ke grid
-        </div>
+        <p className="text-xs text-taupe italic hidden sm:block">
+          Drag untuk pindah · Klik untuk pilih
+        </p>
       </div>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+        <div className="text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-3">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4">
-        <div className="border border-gray-300 rounded-lg overflow-hidden bg-gray-50">
-          <Stage
-            width={CANVAS_W}
-            height={CANVAS_H}
-            onClick={(e) => {
-              if (e.target === e.target.getStage()) setSelectedId(null);
-            }}
-            onTap={(e) => {
-              if (e.target === e.target.getStage()) setSelectedId(null);
-            }}
-          >
-            <Layer>
-              <GridLines />
-              {tables.map((t) => (
-                <DraggableTable
-                  key={t.id}
-                  table={t}
-                  isSelected={t.id === selectedId}
-                  onSelect={() => setSelectedId(t.id)}
-                  onDragEnd={(x, y) => handleDragEnd(t.id, x, y)}
-                />
-              ))}
-            </Layer>
-          </Stage>
-        </div>
+      {/* Canvas + Panel layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4">
+        <ResponsiveCanvas
+          tables={tables}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onDragEnd={handleDragEnd}
+        />
 
-        <aside className="bg-white border rounded-lg p-4">
+        {/* Desktop side panel */}
+        <aside className="hidden lg:block bg-white border border-border-warm rounded-lg p-5 shadow-sm h-fit">
           {selected ? (
             <EditPanel
               table={selected}
@@ -209,40 +188,136 @@ export default function LayoutEditor({ initialTables }: Props) {
               isPending={isPending}
             />
           ) : (
-            <div className="text-center text-sm text-gray-500 py-8">
+            <div className="text-center text-sm text-mocha py-12">
+              <div className="text-4xl mb-2">👆</div>
               Pilih meja untuk mengedit
             </div>
           )}
         </aside>
       </div>
+
+      {/* Mobile bottom sheet */}
+      {selected && (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white border-t border-border-warm rounded-t-2xl shadow-2xl max-h-[75vh] overflow-y-auto animate-slide-up">
+          <div className="sticky top-0 bg-white border-b border-border-soft px-5 py-3 flex items-center justify-between rounded-t-2xl">
+            <div className="font-serif text-lg font-semibold text-espresso">
+              Edit Meja {selected.label}
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedId(null)}
+              className="p-2 -mr-2 text-mocha hover:text-espresso"
+              aria-label="Tutup"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="p-5">
+            <EditPanel
+              table={selected}
+              onChange={(field, value) =>
+                handleFieldUpdate(selected.id, field, value)
+              }
+              onDelete={() => handleDelete(selected.id)}
+              isPending={isPending}
+              hideHeader
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Spacer untuk bottom sheet biar konten tidak tertutup */}
+      {selected && <div className="lg:hidden h-32" aria-hidden />}
     </div>
   );
 }
 
-// ========== Sub-components ==========
+// === Responsive canvas wrapper ===
+function ResponsiveCanvas({
+  tables,
+  selectedId,
+  onSelect,
+  onDragEnd,
+}: {
+  tables: Table[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  onDragEnd: (id: string, x: number, y: number) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(LOGICAL_W);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerWidth(Math.min(entry.contentRect.width, LOGICAL_W));
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const scale = containerWidth / LOGICAL_W;
+  const renderHeight = LOGICAL_H * scale;
+
+  return (
+    <div
+      ref={containerRef}
+      className="border border-border-warm rounded-lg overflow-hidden bg-cream-light shadow-sm w-full"
+    >
+      <Stage
+        width={containerWidth}
+        height={renderHeight}
+        scaleX={scale}
+        scaleY={scale}
+        onClick={(e) => {
+          if (e.target === e.target.getStage()) onSelect(null);
+        }}
+        onTap={(e) => {
+          if (e.target === e.target.getStage()) onSelect(null);
+        }}
+      >
+        <Layer>
+          <GridLines />
+          {tables.map((t) => (
+            <DraggableTable
+              key={t.id}
+              table={t}
+              isSelected={t.id === selectedId}
+              onSelect={() => onSelect(t.id)}
+              onDragEnd={(x, y) => onDragEnd(t.id, x, y)}
+            />
+          ))}
+        </Layer>
+      </Stage>
+    </div>
+  );
+}
 
 function GridLines() {
   const lines: React.ReactElement[] = [];
-  for (let x = POS_SNAP; x < CANVAS_W; x += POS_SNAP) {
+  for (let x = POS_SNAP; x < LOGICAL_W; x += POS_SNAP) {
     lines.push(
       <Rect
         key={`v${x}`}
         x={x}
         y={0}
         width={1}
-        height={CANVAS_H}
+        height={LOGICAL_H}
         fill={COLORS.grid}
         listening={false}
       />,
     );
   }
-  for (let y = POS_SNAP; y < CANVAS_H; y += POS_SNAP) {
+  for (let y = POS_SNAP; y < LOGICAL_H; y += POS_SNAP) {
     lines.push(
       <Rect
         key={`h${y}`}
         x={0}
         y={y}
-        width={CANVAS_W}
+        width={LOGICAL_W}
         height={1}
         fill={COLORS.grid}
         listening={false}
@@ -279,22 +354,13 @@ function DraggableTable({
       onClick={onSelect}
       onTap={onSelect}
       onDragStart={onSelect}
-      // Snap visual selama drag berlangsung
       dragBoundFunc={(pos) => {
-        const snappedX = clamp(snap(pos.x, POS_SNAP), halfW, CANVAS_W - halfW);
-        const snappedY = clamp(snap(pos.y, POS_SNAP), halfH, CANVAS_H - halfH);
+        const snappedX = clamp(snap(pos.x, POS_SNAP), halfW, LOGICAL_W - halfW);
+        const snappedY = clamp(snap(pos.y, POS_SNAP), halfH, LOGICAL_H - halfH);
         return { x: snappedX, y: snappedY };
       }}
       onDragEnd={(e) => {
         onDragEnd(e.target.x(), e.target.y());
-      }}
-      onMouseEnter={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = "move";
-      }}
-      onMouseLeave={(e) => {
-        const stage = e.target.getStage();
-        if (stage) stage.container().style.cursor = "default";
       }}
     >
       {isCircle ? (
@@ -336,6 +402,7 @@ function EditPanel({
   onChange,
   onDelete,
   isPending,
+  hideHeader = false,
 }: {
   table: Table;
   onChange: (
@@ -344,13 +411,11 @@ function EditPanel({
   ) => void;
   onDelete: () => void;
   isPending: boolean;
+  hideHeader?: boolean;
 }) {
   const isCircle = table.shape === "CIRCLE";
 
-  const handleSize = (
-    field: "width" | "height",
-    rawValue: string,
-  ) => {
+  const handleSize = (field: "width" | "height", rawValue: string) => {
     const parsed = parseInt(rawValue) || MIN_SIZE;
     const snapped = snap(clamp(parsed, MIN_SIZE, MAX_SIZE), SIZE_SNAP);
     onChange(field, snapped);
@@ -358,44 +423,47 @@ function EditPanel({
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="text-sm font-bold text-gray-900 mb-1">
-          Edit Meja {table.label}
-        </h3>
-        <p className="text-xs text-gray-500">
-          Posisi: ({Math.round(table.x)}, {Math.round(table.y)})
-        </p>
-      </div>
+      {!hideHeader && (
+        <div>
+          <h3 className="font-serif text-lg font-semibold text-espresso">
+            Meja {table.label}
+          </h3>
+          <p className="text-xs text-taupe mt-0.5">
+            Posisi: ({Math.round(table.x)}, {Math.round(table.y)})
+          </p>
+        </div>
+      )}
 
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
           Label
         </label>
         <input
           type="text"
           value={table.label}
           onChange={(e) => onChange("label", e.target.value)}
-          className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full px-3 py-2.5 bg-cream-light border border-border-warm rounded-md text-espresso focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20 transition text-sm"
           maxLength={10}
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
           Jumlah kursi
         </label>
         <input
           type="number"
+          inputMode="numeric"
           min={1}
           max={20}
           value={table.seats}
           onChange={(e) => onChange("seats", parseInt(e.target.value) || 1)}
-          className="w-full border rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+          className="w-full px-3 py-2.5 bg-cream-light border border-border-warm rounded-md text-espresso focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20 transition text-sm"
         />
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-gray-700 mb-1">
+        <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
           Bentuk
         </label>
         <div className="grid grid-cols-2 gap-2">
@@ -414,7 +482,7 @@ function EditPanel({
 
       {isCircle ? (
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">
+          <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
             Diameter ({table.width}px)
           </label>
           <input
@@ -424,13 +492,13 @@ function EditPanel({
             step={SIZE_SNAP}
             value={table.width}
             onChange={(e) => handleSize("width", e.target.value)}
-            className="w-full"
+            className="w-full h-2"
           />
         </div>
       ) : (
         <>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
               Lebar ({table.width}px)
             </label>
             <input
@@ -440,11 +508,11 @@ function EditPanel({
               step={SIZE_SNAP}
               value={table.width}
               onChange={(e) => handleSize("width", e.target.value)}
-              className="w-full"
+              className="w-full h-2"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
               Tinggi ({table.height}px)
             </label>
             <input
@@ -454,19 +522,19 @@ function EditPanel({
               step={SIZE_SNAP}
               value={table.height}
               onChange={(e) => handleSize("height", e.target.value)}
-              className="w-full"
+              className="w-full h-2"
             />
           </div>
         </>
       )}
 
-      <hr />
+      <hr className="border-border-soft" />
 
       <button
         type="button"
         onClick={onDelete}
         disabled={isPending}
-        className="w-full px-3 py-2 text-sm border border-red-200 text-red-700 rounded hover:bg-red-50 disabled:opacity-50"
+        className="w-full px-4 py-2.5 text-sm border border-clay/30 text-clay-dark rounded-md hover:bg-clay-subtle transition font-medium disabled:opacity-50"
       >
         Hapus Meja
       </button>
@@ -488,10 +556,10 @@ function ShapeOption({
     <button
       type="button"
       onClick={onClick}
-      className={`px-3 py-2 text-xs rounded border ${
+      className={`px-3 py-2.5 text-sm rounded-md border transition font-medium ${
         isActive
-          ? "border-green-600 bg-green-50 text-green-800 font-medium"
-          : "border-gray-200 text-gray-700 hover:bg-gray-50"
+          ? "border-terracotta bg-terracotta-subtle text-terracotta-dark"
+          : "border-border-warm text-cocoa hover:bg-cream-dark"
       }`}
     >
       {value === "RECTANGLE" ? "▭ Persegi" : "◯ Lingkaran"}

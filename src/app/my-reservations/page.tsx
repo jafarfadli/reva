@@ -13,56 +13,73 @@ export default async function MyReservationsPage() {
 
   const reservations = await getUserReservations(session.user.id);
 
-  // Pisahkan upcoming vs past
   const now = Date.now();
   const upcoming = reservations.filter((r) => r.endTime.getTime() >= now);
   const past = reservations.filter((r) => r.endTime.getTime() < now);
 
   return (
-    <main className="p-8 max-w-3xl mx-auto">
-      <header className="mb-6 flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <Link href="/" className="text-sm text-green-700 hover:underline">
-            ← Kembali ke layout
-          </Link>
-          <h1 className="text-3xl font-bold mt-1">Reservasi Saya</h1>
-          <p className="text-gray-600 text-sm">
-            Daftar reservasi yang Anda buat
-          </p>
+    <main className="min-h-screen">
+      <header className="border-b border-border-warm bg-cream-light">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <Link
+              href="/"
+              className="text-sm text-mocha hover:text-terracotta transition"
+            >
+              ← Kembali
+            </Link>
+            <h1 className="font-serif text-2xl sm:text-3xl text-espresso font-semibold mt-1 tracking-tight">
+              Reservasi Saya
+            </h1>
+            <p className="text-xs sm:text-sm text-mocha mt-0.5">
+              Daftar reservasi yang Anda buat
+            </p>
+          </div>
+          <AuthButton />
         </div>
-        <AuthButton />
       </header>
 
-      {reservations.length === 0 ? (
-        <div className="text-center py-12 border border-dashed rounded-lg">
-          <p className="text-gray-500">Belum ada reservasi.</p>
-          <Link
-            href="/"
-            className="inline-block mt-3 px-4 py-2 text-sm bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Buat reservasi pertama
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {upcoming.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3 text-gray-900">
-                Akan datang ({upcoming.length})
-              </h2>
-              <ReservationList reservations={upcoming} canCancel />
-            </section>
-          )}
-          {past.length > 0 && (
-            <section>
-              <h2 className="text-lg font-semibold mb-3 text-gray-700">
-                Riwayat ({past.length})
-              </h2>
-              <ReservationList reservations={past} canCancel={false} />
-            </section>
-          )}
-        </div>
-      )}
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        {reservations.length === 0 ? (
+          <div className="text-center py-12 sm:py-16 bg-white border border-border-warm border-dashed rounded-xl">
+            <div className="font-serif text-lg sm:text-xl text-espresso mb-1">
+              Belum ada reservasi
+            </div>
+            <p className="text-sm text-mocha mb-5 px-4">
+              Reservasi yang kamu buat akan tampil di sini.
+            </p>
+            <Link
+              href="/"
+              className="inline-block px-5 py-2.5 text-sm bg-terracotta text-white rounded-md hover:bg-terracotta-dark transition font-medium shadow-sm"
+            >
+              Buat reservasi pertama →
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-6 sm:space-y-7">
+            {upcoming.length > 0 && (
+              <section>
+                <h2 className="font-serif text-lg sm:text-xl text-espresso font-semibold mb-3">
+                  Akan datang{" "}
+                  <span className="text-mocha font-normal text-base">
+                    ({upcoming.length})
+                  </span>
+                </h2>
+                <ReservationList reservations={upcoming} canCancel />
+              </section>
+            )}
+            {past.length > 0 && (
+              <section>
+                <h2 className="font-serif text-lg sm:text-xl text-mocha font-semibold mb-3">
+                  Riwayat{" "}
+                  <span className="font-normal text-base">({past.length})</span>
+                </h2>
+                <ReservationList reservations={past} canCancel={false} />
+              </section>
+            )}
+          </div>
+        )}
+      </div>
     </main>
   );
 }

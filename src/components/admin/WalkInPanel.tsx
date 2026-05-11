@@ -13,7 +13,7 @@ type TableWithActiveReservation = TableWithStatus & {
   activeReservation: {
     id: string;
     customerName: string;
-    endTime: string; // ISO
+    endTime: string;
   } | null;
 };
 
@@ -27,7 +27,6 @@ export default function WalkInPanel({ tables, fetchedAt }: Props) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  // Auto-refresh tiap 30 detik
   useEffect(() => {
     const id = setInterval(() => router.refresh(), 30 * 1000);
     return () => clearInterval(id);
@@ -45,12 +44,10 @@ export default function WalkInPanel({ tables, fetchedAt }: Props) {
 
   const handleTableClick = (rawTable: TableWithStatus) => {
     setError(null);
-    // Cari data lengkap dengan activeReservation
     const table = tables.find((t) => t.id === rawTable.id);
     if (!table) return;
 
     if (!table.isOccupied) {
-      // Assign walk-in 3 jam
       const ok = confirm(
         `Assign walk-in di Meja ${table.label} (${table.seats} kursi) selama 3 jam?`,
       );
@@ -61,7 +58,6 @@ export default function WalkInPanel({ tables, fetchedAt }: Props) {
         else router.refresh();
       });
     } else {
-      // Release
       const endTime = table.activeReservation
         ? new Date(table.activeReservation.endTime).toLocaleTimeString("id-ID", {
             timeZone: "Asia/Jakarta",
@@ -84,32 +80,34 @@ export default function WalkInPanel({ tables, fetchedAt }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white border rounded-lg p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 text-xs font-semibold bg-green-100 text-green-700 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            LIVE
+      <div className="bg-white border border-border-warm rounded-lg p-4 flex items-center justify-between flex-wrap gap-3 shadow-sm">
+        <div className="flex items-center gap-3 text-sm">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold bg-sage-subtle text-sage-dark rounded-full uppercase tracking-wide">
+            <span className="w-1.5 h-1.5 rounded-full bg-sage animate-pulse" />
+            Live
           </span>
-          <span>Last fetched: {fetchedTime}</span>
+          <span className="text-mocha">Last fetched {fetchedTime}</span>
           {isPending && (
-            <span className="text-xs text-amber-600">Memproses...</span>
+            <span className="text-xs text-caramel italic">Memproses...</span>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-3 text-sm text-gray-700">
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-green-500 inline-block" />
-              Kosong: {freeCount}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 text-sm">
+            <span className="flex items-center gap-1.5 text-cocoa">
+              <span className="w-3 h-3 rounded-full bg-sage inline-block" />
+              <span className="font-semibold text-espresso">{freeCount}</span>{" "}
+              kosong
             </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-full bg-red-500 inline-block" />
-              Terisi: {occupiedCount}
+            <span className="flex items-center gap-1.5 text-cocoa">
+              <span className="w-3 h-3 rounded-full bg-clay inline-block" />
+              <span className="font-semibold text-espresso">{occupiedCount}</span>{" "}
+              terisi
             </span>
           </div>
           <button
             type="button"
             onClick={() => router.refresh()}
-            className="px-3 py-1.5 text-xs font-medium border rounded hover:bg-gray-50"
+            className="px-3 py-1.5 text-xs font-medium border border-border-warm rounded-md hover:bg-cream-dark transition text-cocoa"
           >
             ↻ Refresh
           </button>
@@ -117,12 +115,16 @@ export default function WalkInPanel({ tables, fetchedAt }: Props) {
       </div>
 
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+        <div className="text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-3">
           {error}
         </div>
       )}
 
-      <TableLayoutViewer tables={tables} onTableClick={handleTableClick} allowClickOccupied={true}/>
+      <TableLayoutViewer
+        tables={tables}
+        onTableClick={handleTableClick}
+        allowClickOccupied={true}
+      />
     </div>
   );
 }
