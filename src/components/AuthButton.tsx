@@ -47,8 +47,8 @@ export default async function AuthButton() {
   return (
     <>
       {/* Mobile: dropdown via <details> */}
-      <details className="relative sm:hidden">
-        <summary className="list-none cursor-pointer flex items-center gap-2 select-none p-1 -m-1">
+      <details className="relative sm:hidden ml-auto">
+        <summary className="list-none cursor-pointer select-none p-1 -m-1 flex items-center">
           {session.user.image && (
             <Image
               src={session.user.image}
@@ -58,16 +58,18 @@ export default async function AuthButton() {
               className="rounded-full ring-2 ring-border-warm"
             />
           )}
-          {session.user.role === "ADMIN" && (
-            <span className="text-[10px] px-1.5 py-0.5 bg-terracotta-subtle text-terracotta-dark rounded font-semibold tracking-wide uppercase">
-              Admin
-            </span>
-          )}
         </summary>
-        <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-border-warm rounded-lg shadow-lg z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-60 max-w-[calc(100vw-2rem)] bg-white border border-border-warm rounded-lg shadow-lg z-50 overflow-hidden">
           <div className="px-4 py-3 border-b border-border-soft bg-cream-light">
-            <div className="font-medium text-espresso text-sm truncate">
-              {session.user.name}
+            <div className="flex items-center gap-2 mb-1">
+              <div className="font-medium text-espresso text-sm truncate flex-1">
+                {session.user.name}
+              </div>
+              {session.user.role === "ADMIN" && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-terracotta-subtle text-terracotta-dark rounded font-semibold tracking-wide uppercase shrink-0">
+                  Admin
+                </span>
+              )}
             </div>
             <div className="text-xs text-mocha truncate">
               {session.user.email}
