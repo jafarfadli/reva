@@ -4,6 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cancelReservation } from "@/app/actions/reservations";
 
+type OrderItem = {
+  id: string;
+  quantity: number;
+  priceAtOrder: number;
+  menuItem: { name: string; section: string };
+};
+
 type ReservationItem = {
   id: string;
   customerName: string;
@@ -12,12 +19,15 @@ type ReservationItem = {
   endTime: Date;
   createdAt: Date;
   table: { label: string; seats: number };
+  items: OrderItem[];
 };
 
 type Props = {
   reservations: ReservationItem[];
   canCancel: boolean;
 };
+
+const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 export default function ReservationList({ reservations, canCancel }: Props) {
   return (
@@ -66,6 +76,11 @@ function ReservationCard({
         color: "bg-sage-subtle text-sage-dark border-sage/30",
       }
     : { label: "Selesai", color: "bg-cream-dark text-mocha border-border-warm" };
+
+  const orderTotal = reservation.items.reduce(
+    (sum, item) => sum + item.priceAtOrder * item.quantity,
+    0,
+  );
 
   const handleCancel = () => {
     if (!confirm("Yakin batalkan reservasi ini?")) return;
@@ -123,6 +138,40 @@ function ReservationCard({
           </button>
         )}
       </div>
+
+      {/* Pre-order menu */}
+      {reservation.items.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-border-soft">
+          <div className="text-xs font-semibold text-mocha uppercase tracking-wide mb-2">
+            Pre-order
+          </div>
+          <ul className="space-y-1.5">
+            {reservation.items.map((item) => (
+              <li
+                key={item.id}
+                className="flex justify-between text-sm gap-3"
+              >
+                <span className="text-cocoa">
+                  <span className="font-medium text-espresso">
+                    {item.quantity}×
+                  </span>{" "}
+                  {item.menuItem.name}
+                </span>
+                <span className="text-mocha shrink-0">
+                  {formatRupiah(item.priceAtOrder * item.quantity)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-between mt-2.5 pt-2.5 border-t border-border-soft">
+            <span className="text-sm font-semibold text-espresso">Total</span>
+            <span className="font-serif text-base font-semibold text-terracotta-dark">
+              {formatRupiah(orderTotal)}
+            </span>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="mt-3 text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-2.5">
           {error}

@@ -56,6 +56,11 @@ export async function getUserReservations(userId: string) {
     where: { userId },
     include: {
       table: { select: { label: true, seats: true } },
+      items: {
+        include: {
+          menuItem: { select: { name: true, section: true } },
+        },
+      },
     },
     orderBy: { startTime: "desc" },
   });
@@ -77,6 +82,11 @@ export async function getAllReservations(
     include: {
       table: { select: { label: true, seats: true } },
       user: { select: { email: true, name: true } },
+      items: {
+        include: {
+          menuItem: { select: { name: true, section: true } },
+        },
+      },
     },
     orderBy: { startTime: "asc" },
   });

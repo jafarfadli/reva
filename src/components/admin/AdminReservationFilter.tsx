@@ -4,6 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { cancelReservation } from "@/app/actions/reservations";
 
+type OrderItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  priceAtOrder: number;
+};
+
 type ReservationRow = {
   id: string;
   tableLabel: string;
@@ -13,12 +20,18 @@ type ReservationRow = {
   userEmail: string | null;
   startTime: string;
   endTime: string;
+  items: OrderItem[];
 };
 
 type Props = {
   activeDate: string;
   reservations: ReservationRow[];
 };
+
+const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
+
+const orderTotal = (items: OrderItem[]) =>
+  items.reduce((sum, it) => sum + it.priceAtOrder * it.quantity, 0);
 
 export default function AdminReservationFilter({
   activeDate,
@@ -29,6 +42,12 @@ export default function AdminReservationFilter({
   const handleDateChange = (date: string) => {
     router.push(`/admin?date=${date}`);
   };
+
+  // Total omzet hari itu (dari semua pre-order)
+  const dayRevenue = reservations.reduce(
+    (sum, r) => sum + orderTotal(r.items),
+    0,
+  );
 
   return (
     <div className="space-y-4">
@@ -42,6 +61,14 @@ export default function AdminReservationFilter({
           onChange={(e) => handleDateChange(e.target.value)}
           className="flex-1 sm:flex-none px-3 py-2 bg-cream-light border border-border-warm rounded-md text-sm text-espresso focus:outline-none focus:border-terracotta focus:ring-2 focus:ring-terracotta/20 transition font-medium"
         />
+        {dayRevenue > 0 && (
+          <span className="text-sm text-mocha">
+            Omzet pre-order:{" "}
+            <span className="font-semibold text-terracotta-dark">
+              {formatRupiah(dayRevenue)}
+            </span>
+          </span>
+        )}
         <button
           type="button"
           onClick={() => handleDateChange(formatToday())}
@@ -68,7 +95,7 @@ export default function AdminReservationFilter({
                     <Th>Waktu</Th>
                     <Th>Meja</Th>
                     <Th>Pemesan</Th>
-                    <Th>Akun</Th>
+                    <Th>Pre-order</Th>
                     <Th>Status</Th>
                     <Th align="right">Aksi</Th>
                   </tr>
@@ -156,15 +183,14 @@ function useCancelHandler() {
   return { handleCancel, error, isPending };
 }
 
-function ReservationTableRow({
-  reservation,
-}: {
-  reservation: ReservationRow;
-}) {
+function ReservationTableRow({ reservation }: { reservation: ReservationRow }) {
   const { handleCancel, error, isPending } = useCancelHandler();
+  const [expanded, setExpanded] = useState(false);
   const start = new Date(reservation.startTime);
   const end = new Date(reservation.endTime);
   const { status, isPast } = getStatus(start, end);
+  const total = orderTotal(reservation.items);
+  const hasItems = reservation.items.length > 0;
 
   return (
     <>
@@ -199,11 +225,18 @@ function ReservationTableRow({
           )}
         </td>
         <td className="px-4 py-3">
-          <div className="text-xs text-mocha">
-            {reservation.userEmail ?? (
-              <span className="italic text-taupe">tanpa akun</span>
-            )}
-          </div>
+          {hasItems ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((e) => !e)}
+              className="text-sm text-terracotta hover:text-terracotta-dark transition font-medium flex items-center gap-1"
+            >
+              {reservation.items.length} item · {formatRupiah(total)}
+              <span className="text-xs">{expanded ? "▲" : "▼"}</span>
+            </button>
+          ) : (
+            <span className="text-xs text-taupe italic">tanpa pre-order</span>
+          )}
         </td>
         <td className="px-4 py-3">
           <span
@@ -227,6 +260,40 @@ function ReservationTableRow({
           )}
         </td>
       </tr>
+      {expanded && hasItems && (
+        <tr className="bg-cream-light/60">
+          <td colSpan={6} className="px-4 py-3">
+            <div className="max-w-md">
+              <ul className="space-y-1">
+                {reservation.items.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex justify-between text-sm gap-3"
+                  >
+                    <span className="text-cocoa">
+                      <span className="font-medium text-espresso">
+                        {item.quantity}×
+                      </span>{" "}
+                      {item.name}
+                    </span>
+                    <span className="text-mocha">
+                      {formatRupiah(item.priceAtOrder * item.quantity)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-between mt-2 pt-2 border-t border-border-warm">
+                <span className="text-sm font-semibold text-espresso">
+                  Total
+                </span>
+                <span className="text-sm font-semibold text-terracotta-dark">
+                  {formatRupiah(total)}
+                </span>
+              </div>
+            </div>
+          </td>
+        </tr>
+      )}
       {error && (
         <tr>
           <td colSpan={6} className="px-4 py-2 bg-clay-subtle">
@@ -243,6 +310,8 @@ function ReservationCard({ reservation }: { reservation: ReservationRow }) {
   const start = new Date(reservation.startTime);
   const end = new Date(reservation.endTime);
   const { status, isPast } = getStatus(start, end);
+  const total = orderTotal(reservation.items);
+  const hasItems = reservation.items.length > 0;
 
   return (
     <div
@@ -283,6 +352,35 @@ function ReservationCard({ reservation }: { reservation: ReservationRow }) {
           )}
         </div>
       </div>
+
+      {hasItems && (
+        <div className="mb-3 pt-3 border-t border-border-soft">
+          <div className="text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
+            Pre-order
+          </div>
+          <ul className="space-y-1">
+            {reservation.items.map((item) => (
+              <li key={item.id} className="flex justify-between text-sm gap-3">
+                <span className="text-cocoa">
+                  <span className="font-medium text-espresso">
+                    {item.quantity}×
+                  </span>{" "}
+                  {item.name}
+                </span>
+                <span className="text-mocha">
+                  {formatRupiah(item.priceAtOrder * item.quantity)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="flex justify-between mt-2 pt-2 border-t border-border-soft">
+            <span className="text-sm font-semibold text-espresso">Total</span>
+            <span className="text-sm font-semibold text-terracotta-dark">
+              {formatRupiah(total)}
+            </span>
+          </div>
+        </div>
+      )}
 
       {!isPast && (
         <button

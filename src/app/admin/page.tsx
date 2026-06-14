@@ -70,6 +70,12 @@ export default async function AdminReservationsPage({
           userEmail: r.user?.email ?? null,
           startTime: r.startTime.toISOString(),
           endTime: r.endTime.toISOString(),
+          items: r.items.map((it) => ({
+            id: it.id,
+            name: it.menuItem.name,
+            quantity: it.quantity,
+            priceAtOrder: it.priceAtOrder,
+          })),
         }))}
       />
     </div>
