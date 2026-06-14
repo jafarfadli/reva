@@ -16,16 +16,26 @@ import type { TableWithStatus } from "@/lib/types";
 
 type Mode = "realtime" | "reservation";
 
+export type MenuItemForOrder = {
+  id: string;
+  name: string;
+  price: number;
+  section: "FOOD" | "DRINK" | "DESSERT" | "SNACK";
+  stock: number;
+};
+
 type Props = {
   tables: Table[];
   reservations: Reservation[];
   currentUser: { name: string; email: string } | null;
+  menuItems: MenuItemForOrder[];
 };
 
 export default function TimelineExplorer({
   tables,
   reservations: rawReservations,
   currentUser,
+  menuItems,
 }: Props) {
   const router = useRouter();
 
@@ -218,6 +228,7 @@ export default function TimelineExplorer({
           table={activeTable}
           startTime={selectedDate}
           currentUser={currentUser}
+          menuItems={menuItems}
           onClose={() => setActiveTable(null)}
           onSuccess={() => {
             setActiveTable(null);

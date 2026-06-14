@@ -6,16 +6,22 @@ import { auth } from "@/auth";
 
 const RESERVATION_HOURS = 3;
 
+export type CreateReservationResult =
+  | { ok: true; reservationId: string }
+  | { ok: false; error: string };
+
+export type ReservationItemInput = {
+  menuItemId: string;
+  quantity: number;
+};
+
 export type CreateReservationInput = {
   tableId: string;
   customerName: string;
   customerPhone?: string;
   startTime: string;
+  items: ReservationItemInput[];
 };
-
-export type CreateReservationResult =
-  | { ok: true; reservationId: string }
-  | { ok: false; error: string };
 
 export async function createReservation(
   input: CreateReservationInput,
@@ -39,14 +45,24 @@ export async function createReservation(
 
   const endTime = new Date(startTime.getTime() + RESERVATION_HOURS * 60 * 60 * 1000);
 
+  // Validasi items (kalau ada)
+  const items = input.items ?? [];
+  for (const item of items) {
+    if (item.quantity < 1) {
+      return { ok: false, error: "Jumlah pesanan menu tidak valid." };
+    }
+  }
+
   try {
     const reservation = await prisma.$transaction(async (tx) => {
+      // 1. Cek meja exists
       const table = await tx.table.findUnique({
         where: { id: input.tableId },
         select: { id: true },
       });
       if (!table) throw new Error("TABLE_NOT_FOUND");
 
+      // 2. Cek konflik reservasi (anti double-booking)
       const conflict = await tx.reservation.findFirst({
         where: {
           tableId: input.tableId,
@@ -57,6 +73,51 @@ export async function createReservation(
       });
       if (conflict) throw new Error("CONFLICT");
 
+      // 3. Validasi & decrement stock untuk tiap menu item
+      const orderItemsData: {
+        menuItemId: string;
+        quantity: number;
+        priceAtOrder: number;
+      }[] = [];
+
+      for (const item of items) {
+        const menuItem = await tx.menuItem.findUnique({
+          where: { id: item.menuItemId },
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            stock: true,
+            isAvailable: true,
+          },
+        });
+
+        if (!menuItem) {
+          throw new Error(`MENU_NOT_FOUND:${item.menuItemId}`);
+        }
+        if (!menuItem.isAvailable) {
+          throw new Error(`MENU_UNAVAILABLE:${menuItem.name}`);
+        }
+        if (menuItem.stock < item.quantity) {
+          throw new Error(
+            `INSUFFICIENT_STOCK:${menuItem.name}:${menuItem.stock}`,
+          );
+        }
+
+        // Decrement stock
+        await tx.menuItem.update({
+          where: { id: item.menuItemId },
+          data: { stock: { decrement: item.quantity } },
+        });
+
+        orderItemsData.push({
+          menuItemId: menuItem.id,
+          quantity: item.quantity,
+          priceAtOrder: menuItem.price, // snapshot harga
+        });
+      }
+
+      // 4. Create reservation dengan items
       return await tx.reservation.create({
         data: {
           tableId: input.tableId,
@@ -65,16 +126,35 @@ export async function createReservation(
           customerPhone: input.customerPhone?.trim() || null,
           startTime,
           endTime,
+          items: {
+            create: orderItemsData,
+          },
         },
       });
     });
 
     revalidatePath("/");
+    revalidatePath("/admin");
     return { ok: true, reservationId: reservation.id };
   } catch (err) {
     if (err instanceof Error) {
-      if (err.message === "TABLE_NOT_FOUND") return { ok: false, error: "Meja tidak ditemukan." };
-      if (err.message === "CONFLICT") return { ok: false, error: "Meja sudah dipesan pada waktu tersebut." };
+      if (err.message === "TABLE_NOT_FOUND")
+        return { ok: false, error: "Meja tidak ditemukan." };
+      if (err.message === "CONFLICT")
+        return { ok: false, error: "Meja sudah dipesan pada waktu tersebut." };
+      if (err.message.startsWith("MENU_NOT_FOUND"))
+        return { ok: false, error: "Salah satu menu tidak ditemukan." };
+      if (err.message.startsWith("MENU_UNAVAILABLE")) {
+        const name = err.message.split(":")[1];
+        return { ok: false, error: `Menu "${name}" sedang tidak tersedia.` };
+      }
+      if (err.message.startsWith("INSUFFICIENT_STOCK")) {
+        const [, name, stock] = err.message.split(":");
+        return {
+          ok: false,
+          error: `Stok "${name}" tidak cukup. Tersisa: ${stock}.`,
+        };
+      }
       if (err.message.includes("no_overlap_per_table") || err.message.includes("23P01")) {
         return { ok: false, error: "Meja sudah dipesan pada waktu tersebut." };
       }
@@ -99,26 +179,41 @@ export async function cancelReservation(
   try {
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
-      select: { userId: true, startTime: true },
+      select: {
+        userId: true,
+        startTime: true,
+        items: {
+          select: { menuItemId: true, quantity: true },
+        },
+      },
     });
 
     if (!reservation) {
       return { ok: false, error: "Reservasi tidak ditemukan." };
     }
 
-    // Hanya pemilik atau admin yang bisa cancel
     const isOwner = reservation.userId === session.user.id;
     const isAdmin = session.user.role === "ADMIN";
     if (!isOwner && !isAdmin) {
       return { ok: false, error: "Anda tidak punya akses untuk membatalkan reservasi ini." };
     }
 
-    // Admin boleh cancel kapan pun. Customer tidak bisa cancel reservasi yang sudah mulai.
     if (!isAdmin && reservation.startTime.getTime() < Date.now()) {
       return { ok: false, error: "Reservasi yang sudah berlangsung tidak bisa dibatalkan." };
     }
 
-    await prisma.reservation.delete({ where: { id: reservationId } });
+    // Transaction: kembalikan stock + hapus reservasi
+    await prisma.$transaction(async (tx) => {
+      // Kembalikan stock tiap item
+      for (const item of reservation.items) {
+        await tx.menuItem.update({
+          where: { id: item.menuItemId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+      // Delete reservasi (items ikut terhapus karena cascade)
+      await tx.reservation.delete({ where: { id: reservationId } });
+    });
 
     revalidatePath("/");
     revalidatePath("/my-reservations");

@@ -1,21 +1,35 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import type { TableWithStatus } from "@/lib/types";
 import { createReservation } from "@/app/actions/reservations";
+import type { MenuItemForOrder } from "./TimelineExplorer";
 
 type Props = {
   table: TableWithStatus;
   startTime: Date;
   currentUser: { name: string; email: string } | null;
+  menuItems: MenuItemForOrder[];
   onClose: () => void;
   onSuccess: () => void;
 };
+
+const SECTION_LABELS: Record<string, string> = {
+  FOOD: "Makanan",
+  DRINK: "Minuman",
+  DESSERT: "Dessert",
+  SNACK: "Snack",
+};
+
+const SECTION_ORDER = ["FOOD", "DRINK", "DESSERT", "SNACK"];
+
+const formatRupiah = (n: number) => "Rp " + n.toLocaleString("id-ID");
 
 export default function ReservationModal({
   table,
   startTime,
   currentUser,
+  menuItems,
   onClose,
   onSuccess,
 }: Props) {
@@ -23,6 +37,9 @@ export default function ReservationModal({
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  // Quantity per menu item id
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const endTime = new Date(startTime.getTime() + 3 * 60 * 60 * 1000);
 
@@ -35,6 +52,38 @@ export default function ReservationModal({
       hour: "2-digit",
       minute: "2-digit",
     });
+
+  // Group menu by section
+  const groupedMenu = useMemo(() => {
+    return SECTION_ORDER.map((section) => ({
+      section,
+      label: SECTION_LABELS[section],
+      items: menuItems.filter((m) => m.section === section),
+    })).filter((g) => g.items.length > 0);
+  }, [menuItems]);
+
+  // Hitung total
+  const { totalItems, totalPrice, orderItems } = useMemo(() => {
+    let count = 0;
+    let price = 0;
+    const items: { menuItemId: string; quantity: number }[] = [];
+    for (const [id, qty] of Object.entries(quantities)) {
+      if (qty > 0) {
+        const menu = menuItems.find((m) => m.id === id);
+        if (menu) {
+          count += qty;
+          price += menu.price * qty;
+          items.push({ menuItemId: id, quantity: qty });
+        }
+      }
+    }
+    return { totalItems: count, totalPrice: price, orderItems: items };
+  }, [quantities, menuItems]);
+
+  const setQty = (id: string, qty: number, maxStock: number) => {
+    const clamped = Math.max(0, Math.min(qty, maxStock));
+    setQuantities((prev) => ({ ...prev, [id]: clamped }));
+  };
 
   if (!currentUser) {
     return (
@@ -79,6 +128,7 @@ export default function ReservationModal({
         customerName: name,
         customerPhone: phone,
         startTime: startTime.toISOString(),
+        items: orderItems,
       });
       if (result.ok) {
         onSuccess();
@@ -94,10 +144,10 @@ export default function ReservationModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full p-5 sm:p-6 border border-border-warm max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-xl shadow-xl max-w-lg w-full p-5 sm:p-6 border border-border-warm max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-5">
+        <div className="mb-4">
           <div className="text-xs font-semibold text-terracotta uppercase tracking-wider mb-1">
             Reservasi Meja
           </div>
@@ -109,12 +159,10 @@ export default function ReservationModal({
           </p>
         </div>
 
-        <div className="bg-cream-light border border-border-soft rounded-md p-3.5 mb-5 space-y-1.5 text-sm">
+        <div className="bg-cream-light border border-border-soft rounded-md p-3.5 mb-4 space-y-1.5 text-sm">
           <div className="flex justify-between">
             <span className="text-taupe">Mulai</span>
-            <span className="font-semibold text-espresso">
-              {fmt(startTime)}
-            </span>
+            <span className="font-semibold text-espresso">{fmt(startTime)}</span>
           </div>
           <div className="flex justify-between pt-1.5 border-t border-border-soft">
             <span className="text-taupe">Selesai</span>
@@ -122,7 +170,8 @@ export default function ReservationModal({
           </div>
         </div>
 
-        <div className="space-y-3">
+        {/* Data diri */}
+        <div className="space-y-3 mb-4">
           <div>
             <label className="block text-xs font-semibold text-mocha uppercase tracking-wide mb-1.5">
               Nama <span className="text-terracotta">*</span>
@@ -151,7 +200,100 @@ export default function ReservationModal({
           </div>
         </div>
 
-        <p className="mt-3 text-xs text-taupe italic">
+        {/* Menu selection */}
+        {groupedMenu.length > 0 && (
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-mocha uppercase tracking-wide mb-2">
+              Pre-order Menu (opsional)
+            </div>
+            <div className="space-y-4">
+              {groupedMenu.map((group) => (
+                <div key={group.section}>
+                  <div className="text-sm font-semibold text-espresso mb-2">
+                    {group.label}
+                  </div>
+                  <div className="space-y-2">
+                    {group.items.map((item) => {
+                      const qty = quantities[item.id] ?? 0;
+                      const soldOut = item.stock === 0;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex items-center justify-between gap-3 p-2.5 rounded-md border ${
+                            soldOut
+                              ? "border-border-soft bg-cream-light opacity-60"
+                              : "border-border-warm bg-white"
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-espresso truncate">
+                              {item.name}
+                            </div>
+                            <div className="text-xs text-mocha">
+                              {formatRupiah(item.price)}
+                              {soldOut ? (
+                                <span className="text-clay-dark ml-1">
+                                  · Habis
+                                </span>
+                              ) : (
+                                <span className="text-taupe ml-1">
+                                  · Stok {item.stock}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          {!soldOut && (
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setQty(item.id, qty - 1, item.stock)
+                                }
+                                disabled={isPending || qty === 0}
+                                className="w-8 h-8 rounded-md border border-border-warm text-espresso hover:bg-cream-dark transition disabled:opacity-30 flex items-center justify-center text-lg leading-none"
+                                aria-label="Kurangi"
+                              >
+                                −
+                              </button>
+                              <span className="w-6 text-center text-sm font-semibold text-espresso">
+                                {qty}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setQty(item.id, qty + 1, item.stock)
+                                }
+                                disabled={isPending || qty >= item.stock}
+                                className="w-8 h-8 rounded-md border border-border-warm text-espresso hover:bg-cream-dark transition disabled:opacity-30 flex items-center justify-center text-lg leading-none"
+                                aria-label="Tambah"
+                              >
+                                +
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Total */}
+        {totalItems > 0 && (
+          <div className="bg-terracotta-subtle border border-terracotta/20 rounded-md p-3.5 mb-4 flex items-center justify-between">
+            <span className="text-sm text-cocoa">
+              {totalItems} item dipesan
+            </span>
+            <span className="font-serif text-lg font-semibold text-terracotta-dark">
+              {formatRupiah(totalPrice)}
+            </span>
+          </div>
+        )}
+
+        <p className="text-xs text-taupe italic mb-2">
           Reservasi atas akun:{" "}
           <span className="font-medium text-mocha not-italic">
             {currentUser.email}
@@ -159,12 +301,12 @@ export default function ReservationModal({
         </p>
 
         {error && (
-          <div className="mt-4 text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-3">
+          <div className="mb-4 text-sm text-clay-dark bg-clay-subtle border border-clay/30 rounded-md p-3">
             {error}
           </div>
         )}
 
-        <div className="mt-6 flex justify-end gap-2">
+        <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
@@ -179,7 +321,11 @@ export default function ReservationModal({
             disabled={isPending}
             className="px-5 py-2 text-sm bg-terracotta text-white rounded-md hover:bg-terracotta-dark transition font-medium disabled:opacity-50 shadow-sm"
           >
-            {isPending ? "Memproses..." : "Konfirmasi Reservasi"}
+            {isPending
+              ? "Memproses..."
+              : totalItems > 0
+              ? `Konfirmasi · ${formatRupiah(totalPrice)}`
+              : "Konfirmasi Reservasi"}
           </button>
         </div>
       </div>

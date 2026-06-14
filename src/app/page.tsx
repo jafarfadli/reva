@@ -1,7 +1,10 @@
 import TimelineExplorer from "@/components/TimelineExplorer";
 import AuthButton from "@/components/AuthButton";
 import { auth } from "@/auth";
-import { getTablesWithReservations } from "@/lib/availability";
+import {
+  getTablesWithReservations,
+  getAvailableMenuItems,
+} from "@/lib/availability";
 import { RESERVATION_DAYS_AHEAD } from "@/lib/schedule";
 
 export default async function Home() {
@@ -13,10 +16,10 @@ export default async function Home() {
   const windowEnd = new Date(windowStart);
   windowEnd.setDate(windowEnd.getDate() + RESERVATION_DAYS_AHEAD + 1);
 
-  const { tables, reservations } = await getTablesWithReservations(
-    windowStart,
-    windowEnd,
-  );
+  const [{ tables, reservations }, menuItems] = await Promise.all([
+    getTablesWithReservations(windowStart, windowEnd),
+    getAvailableMenuItems(),
+  ]);
 
   const currentUser = session?.user
     ? {
@@ -46,6 +49,13 @@ export default async function Home() {
           tables={tables}
           reservations={reservations}
           currentUser={currentUser}
+          menuItems={menuItems.map((m) => ({
+            id: m.id,
+            name: m.name,
+            price: m.price,
+            section: m.section,
+            stock: m.stock,
+          }))}
         />
       </div>
     </main>
