@@ -109,3 +109,16 @@ export async function getTablesWithActiveReservation(at: Date) {
       : null,
   }));
 }
+
+export async function getAllMenuItems() {
+  return prisma.menuItem.findMany({
+    orderBy: [{ section: "asc" }, { name: "asc" }],
+  });
+}
+
+export async function getAvailableMenuItems() {
+  return prisma.menuItem.findMany({
+    where: { isAvailable: true },
+    orderBy: [{ section: "asc" }, { name: "asc" }],
+  });
+}

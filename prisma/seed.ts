@@ -4,21 +4,28 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Hapus data lama biar idempotent
-  await prisma.reservation.deleteMany();
-  await prisma.table.deleteMany();
+  // Seed menu items
+  await prisma.reservationItem.deleteMany();
+  await prisma.menuItem.deleteMany();
 
-  await prisma.table.createMany({
+  await prisma.menuItem.createMany({
     data: [
-      { label: "T1", seats: 2, shape: "CIRCLE", x: 100, y: 100, width: 60, height: 60 },
-      { label: "T2", seats: 4, shape: "RECTANGLE", x: 250, y: 100, width: 100, height: 80 },
-      { label: "T3", seats: 4, shape: "RECTANGLE", x: 400, y: 100, width: 100, height: 80 },
-      { label: "T4", seats: 6, shape: "RECTANGLE", x: 100, y: 250, width: 140, height: 80 },
-      { label: "T5", seats: 2, shape: "CIRCLE", x: 320, y: 270, width: 60, height: 60 },
-      { label: "T6", seats: 8, shape: "RECTANGLE", x: 450, y: 250, width: 160, height: 100 },
+      // FOOD
+      { name: "Nasi Goreng Spesial", price: 28000, section: "FOOD", stock: 50 },
+      { name: "Mie Ayam Bakso", price: 25000, section: "FOOD", stock: 40 },
+      { name: "Ayam Bakar Madu", price: 35000, section: "FOOD", stock: 30 },
+      { name: "Gado-Gado", price: 22000, section: "FOOD", stock: 25 },
+      { name: "Sate Ayam (10 tusuk)", price: 30000, section: "FOOD", stock: 35 },
+      // DRINK
+      { name: "Es Teh Manis", price: 8000, section: "DRINK", stock: 100 },
+      { name: "Es Jeruk", price: 10000, section: "DRINK", stock: 80 },
+      { name: "Kopi Susu", price: 18000, section: "DRINK", stock: 60 },
+      { name: "Jus Alpukat", price: 20000, section: "DRINK", stock: 40 },
+      { name: "Air Mineral", price: 5000, section: "DRINK", stock: 200 },
     ],
   });
 
-  console.log("Seed selesai.");
+  console.log("Seed menu selesai.");
 }
 
 main()

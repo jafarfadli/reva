@@ -37,6 +37,7 @@ export default async function AdminLayout({
           <div className="flex gap-1 min-w-max">
             <AdminTab href="/admin" label="Reservasi" />
             <AdminTab href="/admin/walk-in" label="Walk-in" />
+            <AdminTab href="/admin/menu" label="Menu" />
             <AdminTab href="/admin/layout" label="Layout Meja" />
           </div>
         </nav>
