@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import type { TableWithStatus } from "@/lib/types";
 import { createReservation } from "@/app/actions/reservations";
+import { MINIMUM_ORDER } from "@/lib/constants";
 import type { MenuItemForOrder } from "./TimelineExplorer";
 
 type Props = {
@@ -38,7 +39,6 @@ export default function ReservationModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Quantity per menu item id
   const [quantities, setQuantities] = useState<Record<string, number>>({});
 
   const endTime = new Date(startTime.getTime() + 3 * 60 * 60 * 1000);
@@ -53,7 +53,6 @@ export default function ReservationModal({
       minute: "2-digit",
     });
 
-  // Group menu by section
   const groupedMenu = useMemo(() => {
     return SECTION_ORDER.map((section) => ({
       section,
@@ -62,7 +61,6 @@ export default function ReservationModal({
     })).filter((g) => g.items.length > 0);
   }, [menuItems]);
 
-  // Hitung total
   const { totalItems, totalPrice, orderItems } = useMemo(() => {
     let count = 0;
     let price = 0;
@@ -79,6 +77,9 @@ export default function ReservationModal({
     }
     return { totalItems: count, totalPrice: price, orderItems: items };
   }, [quantities, menuItems]);
+
+  const meetsMinimum = totalPrice >= MINIMUM_ORDER;
+  const remaining = Math.max(0, MINIMUM_ORDER - totalPrice);
 
   const setQty = (id: string, qty: number, maxStock: number) => {
     const clamped = Math.max(0, Math.min(qty, maxStock));
@@ -119,6 +120,12 @@ export default function ReservationModal({
   const handleSubmit = () => {
     if (!name.trim()) {
       setError("Nama wajib diisi.");
+      return;
+    }
+    if (!meetsMinimum) {
+      setError(
+        `Total pre-order minimum ${formatRupiah(MINIMUM_ORDER)}. Kurang ${formatRupiah(remaining)} lagi.`,
+      );
       return;
     }
     setError(null);
@@ -203,8 +210,13 @@ export default function ReservationModal({
         {/* Menu selection */}
         {groupedMenu.length > 0 && (
           <div className="mb-4">
-            <div className="text-xs font-semibold text-mocha uppercase tracking-wide mb-2">
-              Pre-order Menu (opsional)
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-semibold text-mocha uppercase tracking-wide">
+                Pre-order Menu <span className="text-terracotta">*</span>
+              </div>
+              <div className="text-xs text-mocha">
+                Min. {formatRupiah(MINIMUM_ORDER)}
+              </div>
             </div>
             <div className="space-y-4">
               {groupedMenu.map((group) => (
@@ -281,17 +293,40 @@ export default function ReservationModal({
           </div>
         )}
 
-        {/* Total */}
-        {totalItems > 0 && (
-          <div className="bg-terracotta-subtle border border-terracotta/20 rounded-md p-3.5 mb-4 flex items-center justify-between">
+        {/* Total + minimum progress */}
+        <div
+          className={`rounded-md p-3.5 mb-4 border ${
+            meetsMinimum
+              ? "bg-sage-subtle border-sage/30"
+              : "bg-cream-light border-border-warm"
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
             <span className="text-sm text-cocoa">
-              {totalItems} item dipesan
+              {totalItems > 0 ? `${totalItems} item dipesan` : "Belum ada item"}
             </span>
-            <span className="font-serif text-lg font-semibold text-terracotta-dark">
+            <span
+              className={`font-serif text-lg font-semibold ${
+                meetsMinimum ? "text-sage-dark" : "text-espresso"
+              }`}
+            >
               {formatRupiah(totalPrice)}
             </span>
           </div>
-        )}
+          {meetsMinimum ? (
+            <div className="text-xs text-sage-dark flex items-center gap-1">
+              <span>✓</span> Minimum pemesanan terpenuhi
+            </div>
+          ) : (
+            <div className="text-xs text-mocha">
+              Kurang{" "}
+              <span className="font-semibold text-terracotta-dark">
+                {formatRupiah(remaining)}
+              </span>{" "}
+              lagi untuk mencapai minimum {formatRupiah(MINIMUM_ORDER)}
+            </div>
+          )}
+        </div>
 
         <p className="text-xs text-taupe italic mb-2">
           Reservasi atas akun:{" "}
@@ -318,14 +353,14 @@ export default function ReservationModal({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isPending}
-            className="px-5 py-2 text-sm bg-terracotta text-white rounded-md hover:bg-terracotta-dark transition font-medium disabled:opacity-50 shadow-sm"
+            disabled={isPending || !meetsMinimum}
+            className="px-5 py-2 text-sm bg-terracotta text-white rounded-md hover:bg-terracotta-dark transition font-medium disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
           >
             {isPending
               ? "Memproses..."
-              : totalItems > 0
+              : meetsMinimum
               ? `Konfirmasi · ${formatRupiah(totalPrice)}`
-              : "Konfirmasi Reservasi"}
+              : "Pesan minimum dulu"}
           </button>
         </div>
       </div>

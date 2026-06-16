@@ -1,0 +1,1 @@
+export const MINIMUM_ORDER = 150000; // Rp 150.000 minimum pre-order per reservasi

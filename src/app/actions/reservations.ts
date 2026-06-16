@@ -3,12 +3,18 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
+import { MINIMUM_ORDER } from "@/lib/constants";
 
 const RESERVATION_HOURS = 3;
+const WALK_IN_DEFAULT_HOURS = 3;
 
-export type CreateReservationResult =
-  | { ok: true; reservationId: string }
-  | { ok: false; error: string };
+function formatRupiahServer(n: number): string {
+  return "Rp " + n.toLocaleString("id-ID");
+}
+
+// ============================================================
+// Types
+// ============================================================
 
 export type ReservationItemInput = {
   menuItemId: string;
@@ -22,6 +28,20 @@ export type CreateReservationInput = {
   startTime: string;
   items: ReservationItemInput[];
 };
+
+export type CreateReservationResult =
+  | { ok: true; reservationId: string }
+  | { ok: false; error: string };
+
+export type CancelReservationResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+// ============================================================
+// CREATE RESERVATION (customer, dengan pre-order wajib)
+// ============================================================
 
 export async function createReservation(
   input: CreateReservationInput,
@@ -43,10 +63,18 @@ export async function createReservation(
     return { ok: false, error: "Waktu reservasi tidak boleh di masa lalu." };
   }
 
-  const endTime = new Date(startTime.getTime() + RESERVATION_HOURS * 60 * 60 * 1000);
+  const endTime = new Date(
+    startTime.getTime() + RESERVATION_HOURS * 60 * 60 * 1000,
+  );
 
-  // Validasi items (kalau ada)
+  // Validasi items — pre-order wajib dengan minimum order
   const items = input.items ?? [];
+  if (items.length === 0) {
+    return {
+      ok: false,
+      error: `Pre-order menu wajib. Minimum pemesanan ${formatRupiahServer(MINIMUM_ORDER)}.`,
+    };
+  }
   for (const item of items) {
     if (item.quantity < 1) {
       return { ok: false, error: "Jumlah pesanan menu tidak valid." };
@@ -117,6 +145,15 @@ export async function createReservation(
         });
       }
 
+      // 3b. Validasi minimum order (pakai harga dari DB, bukan dari client)
+      const orderTotal = orderItemsData.reduce(
+        (sum, it) => sum + it.priceAtOrder * it.quantity,
+        0,
+      );
+      if (orderTotal < MINIMUM_ORDER) {
+        throw new Error(`BELOW_MINIMUM:${orderTotal}`);
+      }
+
       // 4. Create reservation dengan items
       return await tx.reservation.create({
         data: {
@@ -155,7 +192,17 @@ export async function createReservation(
           error: `Stok "${name}" tidak cukup. Tersisa: ${stock}.`,
         };
       }
-      if (err.message.includes("no_overlap_per_table") || err.message.includes("23P01")) {
+      if (err.message.startsWith("BELOW_MINIMUM")) {
+        const total = parseInt(err.message.split(":")[1]);
+        return {
+          ok: false,
+          error: `Total pre-order ${formatRupiahServer(total)} masih di bawah minimum ${formatRupiahServer(MINIMUM_ORDER)}.`,
+        };
+      }
+      if (
+        err.message.includes("no_overlap_per_table") ||
+        err.message.includes("23P01")
+      ) {
         return { ok: false, error: "Meja sudah dipesan pada waktu tersebut." };
       }
     }
@@ -164,9 +211,9 @@ export async function createReservation(
   }
 }
 
-export type CancelReservationResult =
-  | { ok: true }
-  | { ok: false; error: string };
+// ============================================================
+// CANCEL RESERVATION (kembalikan stock + hapus)
+// ============================================================
 
 export async function cancelReservation(
   reservationId: string,
@@ -195,23 +242,27 @@ export async function cancelReservation(
     const isOwner = reservation.userId === session.user.id;
     const isAdmin = session.user.role === "ADMIN";
     if (!isOwner && !isAdmin) {
-      return { ok: false, error: "Anda tidak punya akses untuk membatalkan reservasi ini." };
+      return {
+        ok: false,
+        error: "Anda tidak punya akses untuk membatalkan reservasi ini.",
+      };
     }
 
     if (!isAdmin && reservation.startTime.getTime() < Date.now()) {
-      return { ok: false, error: "Reservasi yang sudah berlangsung tidak bisa dibatalkan." };
+      return {
+        ok: false,
+        error: "Reservasi yang sudah berlangsung tidak bisa dibatalkan.",
+      };
     }
 
     // Transaction: kembalikan stock + hapus reservasi
     await prisma.$transaction(async (tx) => {
-      // Kembalikan stock tiap item
       for (const item of reservation.items) {
         await tx.menuItem.update({
           where: { id: item.menuItemId },
           data: { stock: { increment: item.quantity } },
         });
       }
-      // Delete reservasi (items ikut terhapus karena cascade)
       await tx.reservation.delete({ where: { id: reservationId } });
     });
 
@@ -225,82 +276,9 @@ export async function cancelReservation(
   }
 }
 
-export type CreateWalkInInput = {
-  tableId: string;
-  customerName: string;
-  customerPhone?: string;
-  durationHours: number;
-};
-
-export async function createWalkInReservation(
-  input: CreateWalkInInput,
-): Promise<CreateReservationResult> {
-  const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") {
-    return { ok: false, error: "Akses ditolak. Hanya admin yang bisa assign walk-in." };
-  }
-
-  if (!input.tableId || !input.customerName.trim()) {
-    return { ok: false, error: "Data tidak lengkap." };
-  }
-
-  if (input.durationHours < 1 || input.durationHours > 6) {
-    return { ok: false, error: "Durasi harus 1–6 jam." };
-  }
-
-  // Walk-in mulai SEKARANG (dibulatkan ke menit penuh biar rapi)
-  const startTime = new Date();
-  startTime.setSeconds(0, 0);
-  const endTime = new Date(startTime.getTime() + input.durationHours * 60 * 60 * 1000);
-
-  try {
-    const reservation = await prisma.$transaction(async (tx) => {
-      const table = await tx.table.findUnique({
-        where: { id: input.tableId },
-        select: { id: true },
-      });
-      if (!table) throw new Error("TABLE_NOT_FOUND");
-
-      const conflict = await tx.reservation.findFirst({
-        where: {
-          tableId: input.tableId,
-          startTime: { lt: endTime },
-          endTime: { gt: startTime },
-        },
-        select: { id: true },
-      });
-      if (conflict) throw new Error("CONFLICT");
-
-      return await tx.reservation.create({
-        data: {
-          tableId: input.tableId,
-          userId: null, // walk-in tidak terkait akun customer
-          customerName: input.customerName.trim(),
-          customerPhone: input.customerPhone?.trim() || null,
-          startTime,
-          endTime,
-        },
-      });
-    });
-
-    revalidatePath("/");
-    revalidatePath("/admin");
-    revalidatePath("/admin/walk-in");
-    return { ok: true, reservationId: reservation.id };
-  } catch (err) {
-    if (err instanceof Error) {
-      if (err.message === "TABLE_NOT_FOUND") return { ok: false, error: "Meja tidak ditemukan." };
-      if (err.message === "CONFLICT") return { ok: false, error: "Meja sedang terisi atau ada reservasi yang akan datang dalam durasi tersebut." };
-      if (err.message.includes("no_overlap_per_table") || err.message.includes("23P01")) {
-        return { ok: false, error: "Meja sedang terisi atau ada konflik reservasi." };
-      }
-    }
-    console.error("Walk-in error:", err);
-    return { ok: false, error: "Gagal membuat walk-in reservation." };
-  }
-}
-
-const WALK_IN_DEFAULT_HOURS = 3;
+// ============================================================
+// QUICK ASSIGN WALK-IN (admin, tanpa minimum & tanpa menu)
+// ============================================================
 
 export async function quickAssignWalkIn(
   tableId: string,
@@ -368,9 +346,11 @@ export async function quickAssignWalkIn(
   }
 }
 
-export async function releaseTable(
-  tableId: string,
-): Promise<ActionResult> {
+// ============================================================
+// RELEASE TABLE (admin, bebaskan meja yang sedang terisi)
+// ============================================================
+
+export async function releaseTable(tableId: string): Promise<ActionResult> {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") {
     return { ok: false, error: "Akses ditolak." };
@@ -384,14 +364,26 @@ export async function releaseTable(
         startTime: { lte: now },
         endTime: { gt: now },
       },
-      select: { id: true },
+      select: {
+        id: true,
+        items: { select: { menuItemId: true, quantity: true } },
+      },
     });
 
     if (!active) {
       return { ok: false, error: "Tidak ada reservasi aktif di meja ini." };
     }
 
-    await prisma.reservation.delete({ where: { id: active.id } });
+    // Transaction: kembalikan stock + hapus reservasi
+    await prisma.$transaction(async (tx) => {
+      for (const item of active.items) {
+        await tx.menuItem.update({
+          where: { id: item.menuItemId },
+          data: { stock: { increment: item.quantity } },
+        });
+      }
+      await tx.reservation.delete({ where: { id: active.id } });
+    });
 
     revalidatePath("/");
     revalidatePath("/admin");
@@ -402,5 +394,3 @@ export async function releaseTable(
     return { ok: false, error: "Gagal membebaskan meja." };
   }
 }
-
-type ActionResult = { ok: true } | { ok: false; error: string };
